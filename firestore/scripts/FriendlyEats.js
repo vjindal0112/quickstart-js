@@ -32,7 +32,11 @@ function FriendlyEats() { // eslint-disable-line no-redeclare
 
   firebase.firestore().enablePersistence()
     .then(function() {
+      console.log('Ready to sign you in anonymously! Firebase auth is ' , firebase.auth());
       return firebase.auth().signInAnonymously();
+    })
+    .then(function() {
+      that.updateUserInfo();
     })
     .then(function() {
       that.initTemplates();
@@ -88,6 +92,12 @@ FriendlyEats.prototype.getCleanPath = function(dirtyPath) {
   } else {
     return dirtyPath;
   }
+};
+
+FriendlyEats.prototype.updateUserInfo = function() {
+  var userID = firebase.auth().currentUser.uid;
+  var userData = {'lastLoginTime': Date()};
+  return firebase.firestore().doc(`/users/${userID}`).set(userData, {merge: true});
 };
 
 FriendlyEats.prototype.getFirebaseConfig = function() {

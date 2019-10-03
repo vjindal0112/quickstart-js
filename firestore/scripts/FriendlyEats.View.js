@@ -31,6 +31,7 @@ FriendlyEats.prototype.viewHome = function() {
 };
 
 FriendlyEats.prototype.viewList = function(filters, filter_description) {
+
   if (!filter_description) {
     filter_description = 'any type of food with any price in any city.';
   }
@@ -54,6 +55,11 @@ FriendlyEats.prototype.viewList = function(filters, filter_description) {
   headerEl.querySelector('#show-filters').addEventListener('click', function() {
     that.dialogs.filter.show();
   });
+
+  headerEl.querySelector('#favorites-button').addEventListener('click', function() {
+    console.log('Let\'s look at your favorites!');
+  });
+
 
   var renderResults = function(doc) {
     if (!doc) {

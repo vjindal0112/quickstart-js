@@ -1,0 +1,71 @@
+Already have node installed
+Aldedy ahve firebase istalled
+
+git clone https://github.com/firebase/quickstart-js.git
+Open up the firestore folder
+
+Create firebase project
+Add hosting, I guess
+Change to 6.6.0
+Skip the whole deploy to hosting thing for now -- we can run it locally, too!
+Enable anonymous auth
+Crate database -- testing mode
+
+npm install firebase
+firebase login
+firebase use --Add
+firebase deploy --only firestore
+firbase serve
+
+Add some data!
+
+Next, let's add a user doc
+
+    .then(function() {
+      that.updateUserInfo();
+    })
+
+
+
+
+FriendlyEats.prototype.updateUserInfo = function() {
+  var userID = firebase.auth().currentUser.uid;
+  var userData = {'lastLoginTime': Date()};
+
+  return firebase.firestore().doc(`/users/${userID}`).set(userData);
+};
+
+Almost works but set repalces entire doc
+
+
+  return firebase.firestore().doc(`/users/${userID}`).set(userData, {merge: true});
+
+Okay, add a fake "Favorites" array to my user doc
+Now... uh...
+
+          <section class="mdc-toolbar__section mdc-toolbar__section--align-end">
+            <span class="material-icons mdc-toolbar__icon--favorite">favorites</span>
+          </section>
+
+
+Make it a button
+            <button class="material-icons mdc-toolbar__icon--favorite mdc-icon-button" aria-label="My favorites">favorites</span>
+
+
+Uh... wrrap it in a div
+
+          <div id="favorites-button">
+            <section class="mdc-toolbar__section mdc-toolbar__section--align-end">
+              <button class="material-icons mdc-toolbar__icon--favorite mdc-icon-button" aria-label="My favorites">favorites</span>
+            </section>
+          </div>
+
+
+Then in our header view...
+
+  headerEl.querySelector('#favorites-button').addEventListener('click', function() {
+    console.log('Let\'s look at your favorites!');
+  });
+
+
+Sooo... now what?
