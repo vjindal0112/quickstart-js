@@ -69,3 +69,640 @@ Then in our header view...
 
 
 Sooo... now what?
+
+Try out an emulator -- had to install JDK? Or just JRE? As Sam
+
+
+Firebase init functions
+
+Firebase emulators:start
+
+Oops. Looks like I need to call npm run buidl
+
+
+export const getFavorites_v0 = functions.https.onRequest((request, response) => {
+    const userID = request.query.uid;
+    if (userID !== null) {
+        response.send(`I am going to get favorites for user ${userID}`)
+    }
+});
+
+
+// Also, apparently have to do this. Keep in mind for when that might happen
+
+  // ADD THESE LINES
+  if (window.location.hostname === "localhost") {
+    console.log("localhost detected!");
+    db.settings({
+      host: "localhost:8080",  // USED TO BE 8081
+      ssl: false
+    });
+  }
+
+  Broken -- couldbn't talk locally
+  Disable persistence
+
+Also, transactions are Broken
+
+As are timestamps, but should be fixed
+
+
+npm i -g firebase-tools Fixed it, I think. Up to 7.6.1 -- Have at least that version or timestamps don't works
+
+Also be sure  to 
+npm install firebase-functions@latest --save
+npm install firebase-admin@latest --save-exact
+
+
+
+import * as serviceAccount from '/Users/kerp/Develop/web/callable-function-first-pass/quickstart-js/firestore/functions/src/super_secret/new-test-projects-a746c-firebase-adminsdk-ttdbm-3227776c2b.json';
+const params = {
+    type: serviceAccount.type,
+    projectId: serviceAccount.project_id,
+    privateKeyId: serviceAccount.private_key_id,
+    privateKey: serviceAccount.private_key,
+    clientEmail: serviceAccount.client_email,
+    clientId: serviceAccount.client_id,
+    authUri: serviceAccount.auth_uri,
+    tokenUri: serviceAccount.token_uri,
+    authProviderX509CertUrl: serviceAccount.auth_provider_x509_cert_url,
+    clientC509CertUrl: serviceAccount.client_x509_cert_url
+  }
+  
+admin.initializeApp({
+  credential: admin.credential.cert(params),
+  databaseURL: "http://localhost:8080/"
+ // databaseURL: "https://new-test-projects-a746c.firebaseio.com"
+});
+
+Also in tsconfig.json add     "resolveJsonModule": true
+ 
+
+In updateuserInfo, add line
+
+  console.log('Your userID is ', userID);
+
+Cool. now I have my userID. Let's grab the user Document in the function! See if that all works.
+
+
+
+
+export const getFavorites_v0 = functions.https.onRequest(async (request, response) => {
+    const userID = request.query.uid;
+    if (userID !== null) {
+        console.log(`I am going to get favorites for user ${userID} <br/>`);
+        const userDoc = await admin.firestore().doc(`users/${userID}`).get();
+        console.log(`Here is my user doc <br/>`);
+        console.log(userDoc.data());
+    }
+    response.send('Made it to the end!');
+});
+
+Annoying. Uh...
+
+import * as util from 'util';
+        console.log(util.inspect(userDoc.data()));
+
+
+Okay, update to add  in a few fakes
+
+        const fetchPromises = [];
+        favorites.forEach((restID: string)  => {
+            console.log('I\'m gonna fetch data for ', restID);
+            const nextPromise = admin.firestore().doc(`restaurants/${restID}`).get();
+            fetchPromises.push(nextPromise);
+        });
+
+                Promise.all(fetchPromises).then((data) => {
+            response.send('All done!')
+        });
+
+
+        Issues. Fix type
+
+        Promise<DocumentSnapshot>
+
+                return Promise.all(fetchPromises).then((data) => {            
+            response.send('All done!')
+        });
+
+
+Run it
+
+Okay. Let's... uhh... log som edata!
+
+        return Promise.all(fetchPromises).then((docSnaps) => {            
+            docSnaps.forEach((snapshot: DocumentSnapshot) => {
+                console.log(util.inspect(snapshot.data()));
+            });
+            response.send('All done!')
+        });
+
+
+        return Promise.all(fetchPromises).then((docSnaps) => {            
+            response.send(docSnaps);
+            // docSnaps.forEach((snapshot: DocumentSnapshot) => {
+            //     console.log(util.inspect(snapshot.data()));
+            // });
+            // response.send('All done!')
+        });
+
+Huh. This seems bad. Maybe let's create an array of data and send that instead.
+            const responseArray: DocumentData[] = []
+            docSnaps.forEach((snapshot: DocumentSnapshot) => {
+                responseArray.push(snapshot.data()!);
+            });
+            response.send(responseArray);
+
+In index.html
+
+<script src="/__/firebase/6.6.0/firebase-functions.js"></script>
+
+
+FriendlyEats.prototype.getFavorites = function() {
+  const functions = firebase.functions();
+  const getFavoritesFunction = functions.httpCallable('getFavorites_v0');
+  getFavoritesFunction({uid: firebase.auth().currentUser.uid}).then(function(result) {
+    const restaurantDocs = result.data;
+    console.log(restaurantDocs);
+  });
+
+};
+
+
+Run it! Oops. Gotta call it I guess.
+
+  headerEl.querySelector('#favorites-button').addEventListener('click', function() {
+    this.getFavorites();
+
+  });
+
+Oops. that.getFavorites()  // Explain why??
+
+Error!
+
+Looks like a cors error, but probably not really. 
+
+First, looks like I'm calling prodyuction. Fix that
+
+functions.useFunctionsEmulator('http://localhost:5001') 
+
+
+Okay, let's wrap this up in a try-catch.
+
+I mean, better. But still...
+
+// Okay, gotta swap this out with onCall
+
+Do that everywhere
+
+
+Okay, so I get back a list of restaurants. But uhh... can I convert these into docs? 
+No! So best thing to do is send them back as JSON objects
+
+
+                const responseArray: DocumentData[] = []
+                docSnaps.forEach((snapshot: DocumentSnapshot) => {
+                    const docData = snapshot.data()!;
+                    responseArray.push(docData);
+                });
+                return(responseArray);
+
+Kinda. So we kinda want this to appear in our results. Problem is results expects a doc object.
+
+Not entirely a problem. Let's figure it out.
+
+
+Extract renderRestaurant
+
+FriendlyEats.prototype.renderRestaurantCard = function(mainEl, id, data) {
+
+  // check if restaurant card has already been rendered
+  var existingRestaurantCardEl = mainEl.querySelector('#' + this.ID_CONSTANT + id);
+  var el = existingRestaurantCardEl || this.renderTemplate('restaurant-card', data);
+  console.log('Logging new card for ', id);
+
+  var ratingEl = el.querySelector('.rating');
+  var priceEl = el.querySelector('.price');
+
+  // clear out existing rating and price if they already exist
+  if (existingRestaurantCardEl) {
+    ratingEl.innerHTML = '';
+    priceEl.innerHTML = '';
+  }
+
+  ratingEl.append(this.renderRating(data.avgRating));
+  priceEl.append(this.renderPrice(data.price));
+
+  if (!existingRestaurantCardEl) {
+    mainEl.querySelector('#cards').append(el);
+  }
+
+};
+
+
+Call it from view
+    that.renderRestaurantCard(mainEl, doc.id, data);
+
+
+Create second viewFavorties function
+
+Looks like I just ned to call ID 
+
+// TODO: HACK HACK HACK!
+FriendlyEats.prototype.viewFavorites = function() {
+  var mainEl = this.renderTemplate('main-adjusted');
+  var headerEl = this.renderTemplate('header-base', {
+    hasSectionHeader: true
+  });
+
+  this.replaceElement(
+    headerEl.querySelector('#section-header'),
+    this.renderTemplate('filter-display', {
+      filter_description: 'Your favorites'
+    })
+  );
+  this.replaceElement(document.querySelector('.header'), headerEl);
+  this.replaceElement(document.querySelector('main'), mainEl);
+  var that = this;
+  headerEl.querySelector('#show-filters').addEventListener('click', function() {
+    that.dialogs.filter.show();
+  });
+
+  headerEl.querySelector('#favorites-button').addEventListener('click', function() {
+    that.viewFavorites();
+  });
+
+  var renderResults = function(restData) {
+    if (!restData) {
+      var headerEl = that.renderTemplate('header-base', {
+        hasSectionHeader: true
+      });
+
+      var noResultsEl = that.renderTemplate('no-results');
+
+      that.replaceElement(
+        headerEl.querySelector('#section-header'),
+        that.renderTemplate('filter-display', {
+          filter_description: 'Your favorites'
+        })
+      );
+
+      headerEl.querySelector('#show-filters').addEventListener('click', function() {
+        that.dialogs.filter.show();
+      });
+
+      that.replaceElement(document.querySelector('.header'), headerEl);
+      that.replaceElement(document.querySelector('main'), noResultsEl);
+      return;
+    }
+    restData['go_to_restaurant'] = function() {
+      that.router.navigate('/restaurants/' + restData.id);
+    };
+    that.renderRestaurant(mainEl, restData.id, restData);
+  };
+
+  this.getFavorites(renderResults);
+
+  var toolbar = mdc.toolbar.MDCToolbar.attachTo(document.querySelector('.mdc-toolbar'));
+  toolbar.fixedAdjustElement = document.querySelector('.mdc-toolbar-fixed-adjust');
+
+  mdc.autoInit();
+
+};
+
+Don't forget to call the view function from the  headers:
+
+
+  headerEl.querySelector('#favorites-button').addEventListener('click', function() {
+    that.viewFavorites();
+  });
+
+  
+
+Let's... uh... clean this up a bit.  
+
+Let's change viewList 
+
+FriendlyEats.prototype.viewList = function(filters, filter_description, isFavorites = false) {
+
+  if (isFavorites) {
+    filter_description = 'Your favorite restaurants';
+  }
+
+  var renderResults = function(restaurant) {
+
+    ... 
+
+    let restData;
+    let restID;
+
+    if (isFavorites) {
+      restID = restaurant['.id'];
+      restData = restaurant;
+    } else {
+      restID = restaurant.id;
+      restData = restaurant.data();
+    }
+    restData['go_to_restaurant'] = function() {
+      that.router.navigate('/restaurants/' + restID);
+    };
+    that.renderRestaurant(mainEl, restID, restData);
+
+  };
+
+
+  if (isFavorites) {
+    this.getFavorites(renderResults);
+  } else if (filters.city (etc)
+
+
+  And then, go back up.
+
+  headerEl.querySelector('#favorites-button').addEventListener('click', function() {
+    if (isFavorites) {
+      // Go back to showing our last lisit of restaurants
+      that.updateQuery(that.filters);
+    } else {
+      that.viewFavorites();
+    }
+  });
+
+Then... uh... we can change this to 
+
+FriendlyEats.prototype.viewFavorites = function() {
+  this.viewList(null, null, true);
+};
+
+
+Seems to work. Last thing, maybe let's add the ability to add and remove favoriteRestaurants. Let's deploy back to production!
+
+But before we do, probably safe to go back to production database and cf!
+
+I'm going to comment out the initialize App stuff
+
+
+// const sa = require( './super_secret/new-test-projects-a746c-firebase-adminsdk-ttdbm-3227776c2b.json');
+  
+// admin.initializeApp({
+//   credential: admin.credential.cert(sa),
+//  // databaseURL: "http://localhost:8080/"
+//   databaseURL: "https://new-test-projects-a746c.firebaseio.com"
+// });
+
+And in friendlyEats.js, let's remove this part
+
+if localhost...
+
+And in friendlyEats.data, let's remove thi epart
+
+const functions = firebase.functions();
+// functions.useFunctionsEmulator('http://localhost:5001');
+
+
+deploy and try it.
+
+Oops! 
+
+admin.initializeApp();
+
+firebase deploy --only functions
+
+firebase serve --only hosting is probably fine 
+
+Okay, broken. Can probably get rid of uiserData.favorites line
+
+Let's at least add in the favorites in the console. 
+
+Hooray! Works!
+
+Fix up our cloud function by returning empty array.
+
+                console.log('User has no favorites');
+                return([]);
+
+
+Okay, some client code toa dd and remove favorites!
+
+Go into FriendlyEats.js
+
+this.userFavorites = [];
+
+
+FriendlyEats.prototype.updateUserInfo = function() {
+  var userID = firebase.auth().currentUser.uid;
+  var userData = {'lastLoginTime': Date()};
+  console.log('Your userID is ', userID);
+
+  // Do I need to do that that=this thing here?
+ 
+  var updateInfo =  firebase.firestore().doc(`/users/${userID}`).set(userData, {merge: true});
+  var getFavorites = firebase.firestore().doc(`/users/${userID}`).get().then((doc) => {
+    var userData = doc.data();
+    if (userData.favorites) {
+      this.userFavorites = userData.favorites;
+      console.log("User favorites are ", userData.favorites);
+    }
+  });
+  return Promise.all([updateInfo, getFavorites]);
+};
+
+// To fix the restaurant, looks like we add that in renderTemplate restaurant header
+
+Okay, so let's look at the tamplate...
+
+                  <button id="add-to-favorites" class="mdc-button" aria-hidden="true">
+                    <span class="mcd-button__label">Add</span>                   
+                    <i class="material-icons mdc-button__icon">favorite</i>
+                  </button>
+
+So, here's what I think we can do.                
+
+
+Well... let's try this. 
+
+                  <span class="price"></span>
+                  <span data-fir-if="isFavorite">
+                    <button id="add-to-favorites" class="mdc-button" aria-hidden="true">
+                      <span class="mcd-button__label">Remove</span>                   
+                      <i class="material-icons mdc-button__icon">favorite</i>
+                    </button>
+                  </span>
+                  <span data-fir-if-not="isFavorite">
+                      <button id="add-to-favorites" class="mdc-button" aria-hidden="true">
+                        <span class="mcd-button__label">Add</span>                   
+                        <i class="material-icons mdc-button__icon">favorite</i>
+                      </button>
+                    </span>
+                    <div class="rating"></div>
+
+
+Okay, let's add these two functions in our data section
+
+FriendlyEats.prototype.addToFavorites = function(restaurantID) {
+  const currUserID = firebase.auth().currentUser.uid;
+  const userDoc = firebase.firestore().collection('users').doc(currUserID);
+  userDoc.update({
+    favorites: firebase.firestore.FieldValue.arrayUnion(restaurantID)
+  });
+};
+
+FriendlyEats.prototype.removeFromFavorites = function(restaurantID) {
+  const currUserID = firebase.auth().currentUser.uid;
+  const userDoc = firebase.firestore().collection('users').doc(currUserID);
+  userDoc.update({
+    favorites: firebase.firestore.FieldValue.arrayRemove(restaurantID)
+  });
+};
+
+Okay, go back and add data-fir-click="remove_from_favorites"
+
+But then hook them up in the renderTemplate
+      data.add_to_favorites = function() {
+        that.addToFavorites(id);
+      };
+
+      data.remove_from_favorites = function() {
+        that.removeFromFavorites(id);
+      };
+
+Watch it in the console.
+
+Woo! Works!
+
+But two things -- need to refresh our favorites list. 
+
+Ummm... can I just chyange this?
+
+  var getFavorites = firebase.firestore().doc(`/users/${userID}`).onSnapshot((doc) => {
+
+Well... that was easy, Too easy
+
+nd also refresh the restaurant doc. How do we do that? 
+
+How about that.reredner()?
+
+
+I guess that works since of latency compensation
+
+Fix up a few things that kinda bothered me. 
+
+Should close back to favorites
+
+If we're in favorites, change that icon!
+
+So... actually, let's take what we learned and use it here.
+
+
+Looks like we can kinda kill two birds with one stone!
+
+            <div id="favorites-button">
+              <section class="mdc-toolbar__section mdc-toolbar__section--align-end">
+                <a href="/favorites" data-navigo class="material-icons mdc-icon-button" aria-label="My favorites">favorites</a>
+              </section>
+            </div>
+          </span>
+          <span data-fir-if="favorites">
+            <div id="close-button">
+              <section class="mdc-toolbar__section mdc-toolbar__section--align-end">
+                <a href="/" data-navigo class="material-icons mdc-icon-button" aria-label="Close">close</a>
+              </section>
+            </div>
+          </span>
+
+We can remove querySelector...
+
+Add to our render template
+
+
+Okay, and to fix that going back button... let's try this
+
+    if (isFavorites) {
+      restID = restaurant['.id'];
+      restData = restaurant;
+      restData['backToLink'] = '/favorites';
+    } else {
+      restID = restaurant.id;
+      restData = restaurant.data();
+      restData['backToLink'] = '/';
+    }
+
+Go into restaurant header...
+
+
+Okay. Maybe I need to deploy now.
+
+Module 'google-cloud' is not listed as dependency in package.json
+
+
+npm install --save --save-exact @google-cloud/firestore
+
+Oh, right. And let's change the database URL in initializeApp
+
+
+
+
+
+Old function
+// TODO: HACK HACK HACK!
+FriendlyEats.prototype.viewFavorites = function() {
+  var mainEl = this.renderTemplate('main-adjusted');
+  var headerEl = this.renderTemplate('header-base', {
+    hasSectionHeader: true
+  });
+
+  this.replaceElement(
+    headerEl.querySelector('#section-header'),
+    this.renderTemplate('filter-display', {
+      filter_description: 'Your favorites'
+    })
+  );
+  this.replaceElement(document.querySelector('.header'), headerEl);
+  this.replaceElement(document.querySelector('main'), mainEl);
+  var that = this;
+  headerEl.querySelector('#show-filters').addEventListener('click', function() {
+    that.dialogs.filter.show();
+  });
+
+  headerEl.querySelector('#favorites-button').addEventListener('click', function() {
+    that.viewFavorites();
+  });
+
+  var renderResults = function(restData) {
+    if (!restData) {
+      var headerEl = that.renderTemplate('header-base', {
+        hasSectionHeader: true
+      });
+
+      var noResultsEl = that.renderTemplate('no-results');
+
+      that.replaceElement(
+        headerEl.querySelector('#section-header'),
+        that.renderTemplate('filter-display', {
+          filter_description: 'Your favorites'
+        })
+      );
+
+      headerEl.querySelector('#show-filters').addEventListener('click', function() {
+        that.dialogs.filter.show();
+      });
+
+      that.replaceElement(document.querySelector('.header'), headerEl);
+      that.replaceElement(document.querySelector('main'), noResultsEl);
+      return;
+    }
+    const restID = restData['.id'];
+    restData['go_to_restaurant'] = function() {
+      that.router.navigate('/restaurants/' + restID);
+    };
+    that.renderRestaurant(mainEl, restID, restData);
+  };
+
+  this.getFavorites(renderResults);
+
+  var toolbar = mdc.toolbar.MDCToolbar.attachTo(document.querySelector('.mdc-toolbar'));
+  toolbar.fixedAdjustElement = document.querySelector('.mdc-toolbar-fixed-adjust');
+
+  mdc.autoInit();
+
+};

@@ -5,3 +5,4 @@
 **/*.bak
 .idea
 .firebaserc
+.DS_Store

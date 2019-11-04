@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 'use strict';
+const functions = firebase.functions();
+// functions.useFunctionsEmulator('http://localhost:5001');
 
 FriendlyEats.prototype.addRestaurant = function (data) {
   const collection = firebase.firestore().collection('restaurants');
@@ -70,24 +72,81 @@ FriendlyEats.prototype.getFilteredRestaurants = function (filters, render) {
   this.getDocumentsInQuery(query, render);
 };
 
+FriendlyEats.prototype.getFavorites = function(render) {
+
+  const getFavoritesFunction = functions.httpsCallable('getFavorites_v0');
+  console.log('UserID is still ' + firebase.auth().currentUser.uid);
+  getFavoritesFunction({uid: firebase.auth().currentUser.uid}).then(function(result) {
+    const restaurantDocs = result.data;
+    restaurantDocs.forEach((restaurantDoc) => {
+      console.log('Next restaurant ' + restaurantDoc);
+      render(restaurantDoc);
+    });
+    console.log(restaurantDocs);
+  });
+
+};
+
+
+FriendlyEats.prototype.addToFavorites = function(restaurantID) {
+  const currUserID = firebase.auth().currentUser.uid;
+  const userDoc = firebase.firestore().collection('users').doc(currUserID);
+  userDoc.update({
+    favorites: firebase.firestore.FieldValue.arrayUnion(restaurantID)
+  });
+  
+};
+
+FriendlyEats.prototype.removeFromFavorites = function(restaurantID) {
+  const currUserID = firebase.auth().currentUser.uid;
+  const userDoc = firebase.firestore().collection('users').doc(currUserID);
+  userDoc.update({
+    favorites: firebase.firestore.FieldValue.arrayRemove(restaurantID)
+  });
+};
+
+
 FriendlyEats.prototype.addRating = function (restaurantID, rating) {
   const collection = firebase.firestore().collection('restaurants');
-  const document = collection.doc(restaurantID);
-  const newRatingDocument = document.collection('ratings').doc();
-
-  return firebase.firestore().runTransaction((transaction) => {
-    return transaction.get(document).then((doc) => {
+  const restDocument = collection.doc(restaurantID);
+  const newRatingDocument = restDocument.collection('ratings').doc();
+  console.log('Add rating document ', newRatingDocument, ' at ', newRatingDocument.path);
+  return newRatingDocument.set(rating).then(() => {
+    restDocument.get().then((doc) => {
+      console.log('Look what I have! ', doc);
       const data = doc.data();
+      const newAverage = (data.numRatings * data.avgRating + rating.rating) /
+        (data.numRatings + 1);
+      const newConut = data.numRatings + 1;
+      console.log('New average recorded of: ', newAverage);
 
-      const newAverage =
-          (data.numRatings * data.avgRating + rating.rating) /
-          (data.numRatings + 1);
-
-      transaction.update(document, {
-        numRatings: data.numRatings + 1,
-        avgRating: newAverage
+      restDocument.update({
+        numRatings: newConut,
+        aveRating: newAverage
+      }).then(() => {
+        console.log('All done recording the new average');
+      }).catch((error) => {
+        console.error('Got an error!', error);
       });
-      return transaction.set(newRatingDocument, rating);
     });
+  }).catch((error) => {
+    console.error('Got an error!', error);
   });
+
+
+  /*  return firebase.firestore().runTransaction((transaction) => {
+      return transaction.get(document).then((doc) => {
+        const data = doc.data();
+  
+        const newAverage =
+            (data.numRatings * data.avgRating + rating.rating) /
+            (data.numRatings + 1);
+  
+        transaction.update(document, {
+          numRatings: data.numRatings + 1,
+          avgRating: newAverage
+        });
+        return transaction.set(newRatingDocument, rating);
+      });
+    });*/
 };
