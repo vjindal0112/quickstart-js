@@ -7,3 +7,4 @@
 .firebaserc
 .DS_Store
 /firestore/functions/src/super_secret
+/firestore/functions/src/UseForOtherScreencast
