@@ -88,8 +88,8 @@ FriendlyEats.prototype.viewList = function(filters, filter_description, isFavori
       that.replaceElement(document.querySelector('main'), noResultsEl);
       return;
     }
-    let restData;
-    let restID;
+    var restData;
+    var restID;
 
     if (isFavorites) {
       restID = restaurant['.id'];

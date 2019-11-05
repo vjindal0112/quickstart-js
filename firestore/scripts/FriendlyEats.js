@@ -18,6 +18,7 @@
 /**
  * Initializes the FriendlyEats app.
  */
+// Uncomment these lines to run the locally hosted page against the Cloud Firestore emulator
 // if (window.location.hostname === 'localhost') {
 //   console.log('localhost detected!');
 //   firebase.firestore().settings({
@@ -29,19 +30,16 @@
 function FriendlyEats() { // eslint-disable-line no-redeclare
 
   this.userFavorites = [];
-
   this.filters = {
     city: '',
     price: '',
     category: '',
-    sort: 'Rating',
+    sort: 'Rating'
   };
 
   this.dialogs = {};
 
   var that = this;
-  // ADD THESE LINES
-  // Promise.resolve()
   firebase.firestore().enablePersistence()
     .then(function() {
       console.log('Ready to sign you in anonymously! Firebase auth is ' , firebase.auth());
@@ -58,9 +56,6 @@ function FriendlyEats() { // eslint-disable-line no-redeclare
     }).catch(function(err) {
       console.log(err);
     });
-
-
-  
 }
 
 /**
@@ -119,7 +114,7 @@ FriendlyEats.prototype.updateUserInfo = function() {
   var userData = {'lastLoginTime': Date()};
   console.log('Your userID is ', userID);
 
-  // Do I need to do that that=this thing here?
+  // It seems like I don't need to set that=this... right?
   var updateInfo =  firebase.firestore().doc(`/users/${userID}`).set(userData, {merge: true});
   var getFavorites = firebase.firestore().doc(`/users/${userID}`).onSnapshot((doc) => {
     var userData = doc.data();
