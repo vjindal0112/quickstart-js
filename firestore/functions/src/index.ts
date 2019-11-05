@@ -8,21 +8,27 @@ import { DocumentSnapshot, DocumentData } from '@google-cloud/firestore';
 
 "use strict";
 
-// Don't really need this anymore. Firebase can configure itself from the cloud.
+// Uncomment these lines to run our Cloud Functions in the emulator
+
 // const sa = require( './super_secret/new-test-projects-a746c-firebase-adminsdk-ttdbm-3227776c2b.json');
-  
+ 
 // admin.initializeApp({
 //   credential: admin.credential.cert(sa),
-//  // databaseURL: "http://localhost:8080/"
-//   databaseURL: "https://new-test-projects-a746c.firebaseio.com"
+//   databaseURL: "http://localhost:8080/"
 // });
  
 admin.initializeApp();
 
+/**
+ * Demonstrate a basic working cloud function
+ */
 export const helloWorld = functions.https.onRequest((request, response) => {
  response.send("Hello from Firebase!");
 });
 
+/**
+ * Callable cloud function to get back a list of favorite restaurants for a user
+ */
 export const getFavorites_v0 = functions.https.onCall(async (data, context) => {
     const userID = data.uid;
     try {
@@ -66,8 +72,10 @@ export const getFavorites_v0 = functions.https.onCall(async (data, context) => {
     }
 });
 
-
-export const getFavorites_bad = functions.https.onRequest(async (request, response) => {
+/**
+ * The getFavorites function as an HTTPS call, which was a little easier to demo at first
+ */
+export const getFavorites_as_http = functions.https.onRequest(async (request, response) => {
     const userID = request.query.uid;
     if (userID !== null) {
         console.log(`I am going to get favorites for user ${userID} <br/>`);
@@ -90,39 +98,14 @@ export const getFavorites_bad = functions.https.onRequest(async (request, respon
             const nextPromise = admin.firestore().doc(`restaurants/${restID}`).get();
             fetchPromises.push(nextPromise);
         });
-        return Promise.all(fetchPromises).then((docSnaps) => {            
-            response.send(docSnaps);
-            // const responseArray: DocumentData[] = []
-            // docSnaps.forEach((snapshot: DocumentSnapshot) => {
-            //     responseArray.push(snapshot.data()!);
-            // });
-            // response.send(responseArray);
+        return Promise.all(fetchPromises).then((docSnaps) => {   
+            const responseArray: DocumentData[] = []
+            docSnaps.forEach((snapshot: DocumentSnapshot) => {
+                responseArray.push(snapshot.data()!);
+            });         
+            response.send(responseArray);
         });
     } else {
         response.send('No user id!');
     }
 });
-
-
-export const cleanUpNewReviews = functions.firestore.document('restaurants/{restaurantID}/ratings/{reviewID}').onCreate(async (snapshot, context) => {
-    console.log("Somebody added a new reivew!");
-    const reviewData = snapshot.data();
-    console.log("Got some data!", reviewData);
-    if (reviewData) {
-        const reviewText = reviewData.text;
-        console.log("I am going to sanitize the text ", reviewText);
-        const updatedText = sanitizeForYourProtection(reviewText);
-        console.log("What I got back was ", updatedText);
-        return snapshot.ref.update({text: updatedText}).catch((error) => {
-            console.log('got an error', error);
-        });
-    } else {
-        return null;
-    }
-});
-
-function sanitizeForYourProtection(inputText: string) {
-    const re = /fat\-free cheese/gi;
-    const cleanedText = inputText.replace(re, "cheese");
-    return cleanedText
-}
