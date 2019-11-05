@@ -65,15 +65,6 @@ FriendlyEats.prototype.viewList = function(filters, filter_description, isFavori
     that.dialogs.filter.show();
   });
 
-  // headerEl.querySelector('#favorites-button').addEventListener('click', function() {
-  //   if (isFavorites) {
-  //     // Go back to showing our last lisit of restaurants
-  //     that.updateQuery(that.filters);
-  //   } else {
-  //     that.viewFavorites();
-  //   }
-  // });
-
   var renderResults = function(restaurant) {
     if (!restaurant) {
       var headerEl = that.renderTemplate('header-base', {
@@ -105,15 +96,13 @@ FriendlyEats.prototype.viewList = function(filters, filter_description, isFavori
       restData = restaurant;
       restData['go_to_restaurant'] = function() {
         that.router.navigate('/restaurants/' + restID + '?fromFavorites=true');
-      };
-  
+      }; 
     } else {
       restID = restaurant.id;
       restData = restaurant.data();
       restData['go_to_restaurant'] = function() {
         that.router.navigate('/restaurants/' + restID);
       };
-  
     }
     that.renderRestaurantCard(mainEl, restID, restData);
   };
@@ -143,7 +132,6 @@ FriendlyEats.prototype.renderRestaurantCard = function(mainEl, id, data) {
   // check if restaurant card has already been rendered
   var existingRestaurantCardEl = mainEl.querySelector('#' + this.ID_CONSTANT + id);
   var el = existingRestaurantCardEl || this.renderTemplate('restaurant-card', data);
-  console.log('Logging new card for ', id);
 
   var ratingEl = el.querySelector('.rating');
   var priceEl = el.querySelector('.price');
@@ -218,7 +206,7 @@ FriendlyEats.prototype.initReviewDialog = function() {
       rating: rating,
       text: dialog.querySelector('#text').value,
       userName: 'Anonymous (Web)',
-      timestamp: 24834293 + (Math.floor(Math.random() * 10000)),
+      timestamp: new Date(),
       userId: firebase.auth().currentUser.uid
     }).then(function() {
       that.rerender();
@@ -381,14 +369,10 @@ FriendlyEats.prototype.viewRestaurant = function(id) {
         that.rerender();
       };
 
-
-      console.log('Here\'s your restaurant data', data);
       sectionHeaderEl = that.renderTemplate('restaurant-header', data);
       sectionHeaderEl
         .querySelector('.rating')
         .append(that.renderRating(data.avgRating));
-
-
 
       sectionHeaderEl
         .querySelector('.price')
